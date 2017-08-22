@@ -1,23 +1,11 @@
-import contextlib
-import datetime as dt
 import io
 import itertools as it
-import logging; logging.basicConfig(level=logging.DEBUG)
-import types
 import warnings
 import zipfile
 
-import conda_helpers as ch
 import lxml
-import mpm
-import mpm.api
-import mpm.ui.gtk
 import openpyxl as ox
-import openpyxl.worksheet.datavalidation
-import pandas as pd
 import path_helpers as ph
-import xlsxwriter
-import yaml
 
 
 from ._version import get_versions

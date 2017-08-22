@@ -16,14 +16,16 @@ build:
 
 requirements:
   build:
-    - pip
     - python 2.7*
+    - lxml
     - openpyxl
+    - path_helpers
 
   run:
-    - pip
     - python 2.7*
+    - lxml
     - openpyxl
+    - path_helpers
 
 test:
   imports:

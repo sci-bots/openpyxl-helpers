@@ -28,7 +28,7 @@ setup(name='openpyxl-helpers',
       license='BSD',
       packages=find_packages('src'),
       package_dir={'': 'src'},
-      install_requires=['openpyxl'],
+      install_requires=['lxml', 'openpyxl', 'path-helpers'],
       py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
       # Install data listed in `MANIFEST.in`
       include_package_data=True)
