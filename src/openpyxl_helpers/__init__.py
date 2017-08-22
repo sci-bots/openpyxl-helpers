@@ -163,3 +163,39 @@ def get_column_widths(worksheet, min_width=None):
                       it.groupby(sorted(worksheet.get_cell_collection(),
                                         key=key), key=key)}
     return column_widths
+
+
+def get_defined_names_by_worksheet(workbook):
+    '''
+    .. versionadded:: 0.3
+
+    Parameters
+    ----------
+    workbook : openpyxl.workbook.workbook.Workbook
+
+    Returns
+    -------
+    dict
+        Mapping from each worksheet name to the corresponding defined names
+        (i.e., named ranges) in the worksheet.
+
+        Each value in the top-level dictionary corresponds to a dictionary
+        mapping each defined name to the corresponding range.
+
+        For example:
+
+            {'Foo sheet': {'Some foo range': '$D$11:$D$1048576',
+              'Some foo cell': '$B$6'},
+             'Bar sheet': {'Some bar range': '$I$2:$I$3',
+              'Some bar cell': '$K$2'}}
+    '''
+    defined_name_tuples = \
+        sorted([tuple(it.chain(*[(sheet_name_i, defined_name_i.name, range_i)
+                                 for sheet_name_i, range_i in
+                                 defined_name_i.destinations]))
+                for defined_name_i in workbook.defined_names.definedName])
+
+    return dict([(sheet_name_i,
+                  dict([tuple_ij[1:] for tuple_ij in defined_names_group_i]))
+                 for sheet_name_i, defined_names_group_i in
+                 it.groupby(defined_name_tuples, lambda n: n[0])])
