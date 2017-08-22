@@ -19,7 +19,7 @@ import versioneer
 # See https://blog.ionelmc.ro/2014/06/25/python-packaging-pitfalls/
 setup(name='openpyxl-helpers',
       version=versioneer.get_version(),
-      cmdclass=versioneer.get_cmdclass()
+      cmdclass=versioneer.get_cmdclass(),
       description='Helpers functions, etc. for openpyxl package',
       keywords='',
       author='Christian Fobel',
