@@ -18,13 +18,13 @@ requirements:
   build:
     - python 2.7*
     - lxml
-    - openpyxl
+    - openpyxl >=2.5
     - path_helpers
 
   run:
     - python 2.7*
     - lxml
-    - openpyxl
+    - openpyxl >=2.5
     - path_helpers
 
 test:
