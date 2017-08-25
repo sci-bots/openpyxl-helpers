@@ -1,3 +1,4 @@
+import logging
 import io
 import itertools as it
 import zipfile
@@ -6,10 +7,11 @@ import lxml
 import openpyxl as ox
 import path_helpers as ph
 
-
 from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
+
+logger = logging.getLogger(__name__)
 
 
 EXCEL_NAMESPACES = {k: getattr(ox.xml.constants, k)
@@ -264,15 +266,14 @@ def update_data_validations(xlsx_path, data_validations):
                             worksheet_i.xpath('//SHEET_MAIN_NS:dataValidations',
                                               namespaces=EXCEL_NAMESPACES)
 
-                        print existing_validations_i
                         if existing_validations_i:
-                            print 'replace...'
+                            logger.debug('Replace existing data validation(s)')
                             worksheet_i.replace(existing_validations_i[0],
                                                 data_validations_i)
                         else:
-                            print 'append new...'
-                            # Append the data validations element to the worksheet
-                            # element.
+                            logger.debug('Append new data validation(s)')
+                            # Append the data validations element to the
+                            # worksheet element.
                             worksheet_i.append(data_validations_i)
                         # Use modified worksheet contents with data validations
                         # element added.
