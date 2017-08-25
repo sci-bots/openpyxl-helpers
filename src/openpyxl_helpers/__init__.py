@@ -36,7 +36,7 @@ def load_extension_lists(xlsx_path):
 
     See also
     --------
-    :func:`update_extension_lists` :func:`update_data_validations,
+    :func:`update_extension_lists` :func:`update_data_validations`,
     :func:`load_extension_lists`,
 
     Parameters
@@ -96,7 +96,7 @@ def update_extension_lists(xlsx_path, extension_lists):
 
     See also
     --------
-    :func:`load_extension_lists` :func:`update_data_validations,
+    :func:`load_extension_lists` :func:`update_data_validations`,
     :func:`load_extension_lists`,
 
     Parameters
@@ -168,7 +168,7 @@ def load_data_validations(xlsx_path):
 
     See also
     --------
-    :func:`update_data_validations, :func:`load_extension_lists`,
+    :func:`update_data_validations`, :func:`load_extension_lists`,
     :func:`update_extension_lists`
 
     Parameters
