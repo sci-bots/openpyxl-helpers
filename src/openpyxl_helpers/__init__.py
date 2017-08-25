@@ -1,3 +1,4 @@
+import logging
 import io
 import itertools as it
 import zipfile
@@ -6,14 +7,16 @@ import lxml
 import openpyxl as ox
 import path_helpers as ph
 
-
 from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
+logger = logging.getLogger(__name__)
+
 
 EXCEL_NAMESPACES = {k: getattr(ox.xml.constants, k)
-                    for k in ('SHEET_MAIN_NS', 'REL_NS', 'PKG_REL_NS')}
+                    for k in ('SHEET_MAIN_NS', 'REL_NS', 'PKG_REL_NS',
+                              'CONTYPES_NS')}
 
 
 def load_extension_lists(xlsx_path):
@@ -34,7 +37,7 @@ def load_extension_lists(xlsx_path):
 
     See also
     --------
-    :func:`update_extension_lists` :func:`update_data_validations,
+    :func:`update_extension_lists` :func:`update_data_validations`,
     :func:`load_extension_lists`,
 
     Parameters
@@ -94,7 +97,7 @@ def update_extension_lists(xlsx_path, extension_lists):
 
     See also
     --------
-    :func:`load_extension_lists` :func:`update_data_validations,
+    :func:`load_extension_lists` :func:`update_data_validations`,
     :func:`load_extension_lists`,
 
     Parameters
@@ -104,6 +107,11 @@ def update_extension_lists(xlsx_path, extension_lists):
     extension_lists : dict
         Mapping from each worksheet filepath in Excel ZIP file to
         corresponding extension list XML element.
+
+    Returns
+    -------
+    bytes
+        Modified Excel ``.xlsx`` file contents as a bytes string.
     '''
     with io.BytesIO() as output:
         with zipfile.ZipFile(output, mode='a',
@@ -161,7 +169,7 @@ def load_data_validations(xlsx_path):
 
     See also
     --------
-    :func:`update_data_validations, :func:`load_extension_lists`,
+    :func:`update_data_validations`, :func:`load_extension_lists`,
     :func:`update_extension_lists`
 
     Parameters
@@ -230,6 +238,11 @@ def update_data_validations(xlsx_path, data_validations):
     data_validations : dict
         Mapping from each worksheet filepath in Excel ZIP file to
         corresponding data validations XML element.
+
+    Returns
+    -------
+    bytes
+        Modified Excel ``.xlsx`` file contents as a bytes string.
     '''
     with io.BytesIO() as output:
         with zipfile.ZipFile(output, mode='a',
@@ -264,15 +277,14 @@ def update_data_validations(xlsx_path, data_validations):
                             worksheet_i.xpath('//SHEET_MAIN_NS:dataValidations',
                                               namespaces=EXCEL_NAMESPACES)
 
-                        print existing_validations_i
                         if existing_validations_i:
-                            print 'replace...'
+                            logger.debug('Replace existing data validation(s)')
                             worksheet_i.replace(existing_validations_i[0],
                                                 data_validations_i)
                         else:
-                            print 'append new...'
-                            # Append the data validations element to the worksheet
-                            # element.
+                            logger.debug('Append new data validation(s)')
+                            # Append the data validations element to the
+                            # worksheet element.
                             worksheet_i.append(data_validations_i)
                         # Use modified worksheet contents with data validations
                         # element added.
@@ -333,9 +345,9 @@ def get_defined_names_by_worksheet(workbook):
         For example:
 
             {'Foo sheet': {'Some foo range': '$D$11:$D$1048576',
-              'Some foo cell': '$B$6'},
+                           'Some foo cell': '$B$6'},
              'Bar sheet': {'Some bar range': '$I$2:$I$3',
-              'Some bar cell': '$K$2'}}
+                           'Some bar cell': '$K$2'}}
     '''
     defined_name_tuples = \
         sorted([tuple(it.chain(*[(sheet_name_i, defined_name_i.name, range_i)
@@ -380,3 +392,157 @@ def extract_worksheet_xml(xlsx_path, worksheet_path):
         if worksheet_path.startswith('/'):
             worksheet_path = worksheet_path[1:]
         return lxml.etree.fromstring(input_zip.read(worksheet_path))
+
+
+def load_charts(xlsx_path):
+    '''
+    Load charts in an Excel spreadsheet.
+
+    Note that ``openpyxl`` does not currently `support reading existing charts
+    (any existing charts are removed when opening a workbook).
+
+    As a workaround, this function makes it possible to load the charts
+    from a workbook so they may be restored to a workbook opened by
+    ``openpyxl`` using  :func:`update_charts`.
+
+    .. versionadded:: 0.5
+
+    See also
+    --------
+    :func:`update_charts`, :func:`load_data_validations`,
+    :func:`load_extension_lists`
+
+    Parameters
+    ----------
+    xlsx_path : str
+        Path to Excel ``xlsx`` file.
+
+    Returns
+    -------
+    dict
+        Mapping from the name of each chart-related file in the Excel
+        spreadsheet to the corresponding file contents (as bytes) or XML
+        elements.
+    '''
+    # Open Excel file.
+    with zipfile.ZipFile(xlsx_path, mode='r') as input_:
+        # Get mapping from each worksheet filename to corresponding `ZipInfo`
+        # object.
+        zip_info_by_filenames = {ph.path(v.filename): v
+                                 for v in input_.filelist}
+        # Copy fully chart-related files into zip file.
+        chart_filenames = [filename_i for filename_i in zip_info_by_filenames
+                           if any([any(filename_i.parent.startswith(p)
+                                       for p in ('xl/charts', 'xl/drawings',
+                                                 'xl/worksheets/_rels')),
+                                   ])]
+        chart_files = {zip_info_by_filenames[filename_i]:
+                       input_.read(filename_i)
+                       for filename_i in chart_filenames}
+        # Merge chart-related elements into worksheets and content types files.
+        for filename_i in zip_info_by_filenames:
+            if filename_i == '[Content_Types].xml':
+                xml_root = lxml.etree.fromstring(input_.read(filename_i))
+                elements_i = []
+                content_types = ["application/vnd.openxmlformats-"
+                                 "officedocument.drawing+xml",
+                                 "application/vnd.openxmlformats-"
+                                 "officedocument.drawingml.chart+xml"]
+                for content_type_i in content_types:
+                    elements_i += xml_root.xpath('CONTYPES_NS:Override'
+                                                 '[@ContentType="{}"]'
+                                                 .format(content_type_i),
+                                                 namespaces=EXCEL_NAMESPACES)
+            elif filename_i.startswith('xl/worksheets/sheet'):
+                xml_root = lxml.etree.fromstring(input_.read(filename_i))
+                elements_i = xml_root.xpath('SHEET_MAIN_NS:drawing',
+                                            namespaces=EXCEL_NAMESPACES)
+            else:
+                continue
+            if elements_i:
+                logger.debug('Merge chart-related elements into: %s',
+                             filename_i)
+                chart_files[zip_info_by_filenames[filename_i]] = elements_i
+                if logger.LEVEL >= logging.DEBUG:
+                    for element_i in elements_i:
+                        logger.debug(' - %s', lxml.etree
+                                     .tostring(element_i, pretty_print=True))
+    return chart_files
+
+
+def update_charts(xlsx_path, chart_files):
+    '''
+    Update charts in an Excel spreadsheet.
+
+    Note that ``openpyxl`` does not currently `support reading existing charts
+    (any existing charts are removed when opening a workbook).
+
+    As a workaround, this function makes it possible to restore charts
+    to a workbook opened by ``openpyxl`` if they are first loaded using
+    :func:`load_charts`.
+
+    .. versionadded:: 0.5
+
+    See also
+    --------
+    :func:`load_charts`, :func:`load_extension_lists`,
+    :func:`load_data_validations`
+
+    Parameters
+    ----------
+    xlsx_path : str
+        Path to Excel ``xlsx`` file.
+    chart_files : dict
+        Mapping from the name of each chart-related file in the Excel
+        spreadsheet to the corresponding file contents (as bytes) or XML
+        elements.
+
+    Returns
+    -------
+    bytes
+        Modified Excel ``.xlsx`` file contents as a bytes string.
+    '''
+    chart_filenames = {zip_info_i.filename for zip_info_i in chart_files}
+
+    with io.BytesIO() as output:
+        with zipfile.ZipFile(output, mode='w',
+                             compression=zipfile.ZIP_DEFLATED) as output_zip:
+            # - Read existing file
+            # - Copy all existing files to in-memory zip file.
+            with zipfile.ZipFile(xlsx_path, mode='r') as input_:
+                zip_infos_by_filename = {ph.path(v.filename): v
+                                         for v in input_.filelist}
+                for filename_i, zip_info_i in zip_infos_by_filename.iteritems():
+                    if filename_i in chart_filenames:
+                        # Skip existing chart files.
+                        continue
+
+                    # Worksheet file has no extension list.  Use original
+                    # worksheet contents.
+                    contents_i = input_.read(filename_i)
+
+                    # Write worksheet contents to output zip.
+                    output_zip.writestr(filename_i, contents_i,
+                                        zip_info_i.compress_type)
+
+                # - Restore/copy chart-related files to in-memory zip file.
+                for zip_info_i, contents_i in chart_files.iteritems():
+                    if isinstance(contents_i, list):
+                        logger.debug('Merge elements into: %s',
+                                     zip_info_i.filename)
+                        filename_i = zip_info_i.filename
+                        # Start with original worksheet contents.
+                        xml_source_i = input_.read(filename_i)
+                        xml_root = lxml.etree.fromstring(xml_source_i)
+                        for element_ij in contents_i:
+                            xml_root.append(element_ij)
+                        output_zip.writestr(zip_info_i.filename,
+                                            lxml.etree.tostring(xml_root),
+                                            zip_info_i.compress_type)
+                    else:
+                        logger.debug('Restore: %s', zip_info_i.filename)
+                        # Write worksheet contents to output zip.
+                        output_zip.writestr(zip_info_i.filename, contents_i,
+                                            zip_info_i.compress_type)
+            output_zip.close()
+        return output.getvalue()
