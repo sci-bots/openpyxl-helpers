@@ -4,7 +4,9 @@ import itertools as it
 import zipfile
 
 import lxml
+import numpy as np
 import openpyxl as ox
+import pandas as pd
 import path_helpers as ph
 
 from ._version import get_versions
@@ -546,3 +548,55 @@ def update_charts(xlsx_path, chart_files):
                                             zip_info_i.compress_type)
             output_zip.close()
         return output.getvalue()
+
+
+def create_chart_demo_workbook(xlsx_path):
+    '''
+    Create demo Excel workbook with:
+     - 4 worksheets containing data
+     - 1 worksheet containing a chart plotting the data from the other
+       worksheets.
+
+    .. versionadded:: 0.6
+
+    Parameters
+    ----------
+    xlsx_path : str
+        Output path.
+
+    Returns
+    -------
+    path_helpers.path
+        Wrapped output path.
+
+        Allows, for example, easy opening of document using the ``launch()``
+        method.
+    '''
+    xlsx_path = ph.path(xlsx_path)
+    with pd.ExcelWriter(xlsx_path, engine='openpyxl') as test_writer:
+        workbook = test_writer.book
+
+        workbook.create_sheet('My Chart')
+
+        N = 100
+        for i, label_i in enumerate(('My', 'Your', 'His', 'Her')):
+            s_data_i = pd.Series(np.random.rand(N)) * (i + 1)
+            s_data_i.to_excel(test_writer, sheet_name='{} Data'
+                              .format(label_i), header=False)
+
+        worksheets = dict(zip(workbook.sheetnames, workbook.worksheets))
+
+        chart = ox.chart.ScatterChart()
+        chart.x_axis.title = 'Time (s)'
+        chart.y_axis.title = 'Current (A)'
+
+        for name_i, sheet_i in worksheets.iteritems():
+            if name_i == 'My Chart':
+                continue
+            x = ox.chart.Reference(sheet_i, min_col=1, min_row=1, max_row=N)
+            y = ox.chart.Reference(sheet_i, min_col=2, min_row=1, max_row=N)
+            y_series = ox.chart.Series(y, x, title=name_i)
+            chart.series.append(y_series)
+
+        worksheets['My Chart'].add_chart(chart, 'A1')
+    return xlsx_path
