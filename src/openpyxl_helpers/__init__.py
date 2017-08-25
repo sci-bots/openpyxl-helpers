@@ -106,6 +106,11 @@ def update_extension_lists(xlsx_path, extension_lists):
     extension_lists : dict
         Mapping from each worksheet filepath in Excel ZIP file to
         corresponding extension list XML element.
+
+    Returns
+    -------
+    bytes
+        Modified Excel ``.xlsx`` file contents as a bytes string.
     '''
     with io.BytesIO() as output:
         with zipfile.ZipFile(output, mode='a',
@@ -232,6 +237,11 @@ def update_data_validations(xlsx_path, data_validations):
     data_validations : dict
         Mapping from each worksheet filepath in Excel ZIP file to
         corresponding data validations XML element.
+
+    Returns
+    -------
+    bytes
+        Modified Excel ``.xlsx`` file contents as a bytes string.
     '''
     with io.BytesIO() as output:
         with zipfile.ZipFile(output, mode='a',
