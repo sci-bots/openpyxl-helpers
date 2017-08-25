@@ -344,9 +344,9 @@ def get_defined_names_by_worksheet(workbook):
         For example:
 
             {'Foo sheet': {'Some foo range': '$D$11:$D$1048576',
-              'Some foo cell': '$B$6'},
+                           'Some foo cell': '$B$6'},
              'Bar sheet': {'Some bar range': '$I$2:$I$3',
-              'Some bar cell': '$K$2'}}
+                           'Some bar cell': '$K$2'}}
     '''
     defined_name_tuples = \
         sorted([tuple(it.chain(*[(sheet_name_i, defined_name_i.name, range_i)
